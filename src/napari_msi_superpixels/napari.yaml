@@ -1,0 +1,15 @@
+name: napari-msi-superpixels
+display_name: MSI Superpixels
+contributions:
+  commands:
+    - id: napari-msi-superpixels.make_import_widget
+      python_name: napari_msi_superpixels:make_import_widget
+      title: Create MSI import widget
+    - id: napari-msi-superpixels.make_superpixel_widget
+      python_name: napari_msi_superpixels:make_superpixel_widget
+      title: Create superpixel widget
+  widgets:
+    - command: napari-msi-superpixels.make_import_widget
+      display_name: Import MSI Data
+    - command: napari-msi-superpixels.make_superpixel_widget
+      display_name: Superpixel Generator

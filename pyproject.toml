@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "napari-msi-superpixels"
+version = "0.1.0"
+description = "MSI import to correct order and build hypercube. Superpixel segmentation tools for fullscale MSI data"
+requires-python = ">=3.13"
+dependencies = [
+    "napari>=0.7.0",
+    "numpy>=2.4.6",
+    "h5py>=3.16.0",
+    "magicgui>=0.10.2",
+    "qtpy>=2.4.3",
+    "scikit-image>=0.26.0"
+]
+classifiers = [
+    "Framework :: napari",
+]
+
+[project.entry-points."napari.manifest"]
+napari-msi-superpixels = "napari_msi_superpixels:napari.yaml"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+napari_msi_superpixels = ["napari.yaml"]
