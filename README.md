@@ -18,5 +18,8 @@ pip install -e .
 
 Check requirements, the main one is napari. To install napari use "pip install napari[all]".
 
+# TO DO
+- Add Imzml parser to plugin.
+- 
 # Credit
 napari plugin architecture corrections made with help from Claude Sonnet 5
