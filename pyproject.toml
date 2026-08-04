@@ -14,6 +14,7 @@ dependencies = [
     "magicgui>=0.10.2",
     "qtpy>=2.4.3",
     "scikit-image>=0.26.0"
+    "pyimzML>=1.5.5"
 ]
 classifiers = [
     "Framework :: napari",

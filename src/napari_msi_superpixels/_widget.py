@@ -1,7 +1,7 @@
 # --- Package Import --- #
 import h5py
 import numpy as np
-from ._hypercube import construct_hypercube
+from ._hypercube import construct_hypercube, construct_imzml_cube
 from magicgui import magicgui
 from skimage.segmentation import felzenszwalb, slic, find_boundaries
 from napari.layers import Image
@@ -9,12 +9,14 @@ from pathlib import Path
 from napari.qt.threading import thread_worker
 from qtpy.QtWidgets import QApplication
 from napari.viewer import current_viewer
+from pyimzml.ImzMLParser import ImzMLParser
 
+# - Reset button function - #
 def reset_button(widget, label):
     widget.call_button.enabled = True
     widget.call_button.text = label
 
-# --- Importer --- #
+# --- Importer | H5 --- #
 @thread_worker(start_thread=False)
 def run_import(import_path):
     with h5py.File(import_path, "r") as f:
@@ -46,8 +48,44 @@ def make_import_widget():
         worker.start()
 
     import_msi_widget.import_path.tooltip = "Path to MSI data"   
-    return import_msi_widget                                      
 
+    return import_msi_widget      
+
+# --- Importer | ImzML --- #
+@thread_worker(start_thread=False)
+def run_import_imzml(import_path):
+    with ImzMLParser(import_path) as parser:
+        cube, unit_cube = construct_imzml_cube(parser)
+        data_transposed = np.moveaxis(unit_cube, -1, 0)
+    return data_transposed          
+
+def make_imzml_import_widget():
+    @magicgui(
+        call_button="Import MSI Data",
+        auto_call=False,
+        import_path={'label': 'ImzML File'}
+    )
+    def import_imzml_widget(import_path: Path = Path()):
+        viewer = current_viewer()
+        if not import_path.exists():
+            print("\nInvalid path")
+            return 
+
+        import_imzml_widget.call_button.enabled = False
+        import_imzml_widget.call_button.text = "Importing..."
+        QApplication.processEvents()
+
+        worker = run_import_imzml(import_path)
+        worker.returned.connect(lambda result: viewer.add_image(
+                    result, name=f"MSI Cube ({result.shape})"))
+        worker.errored.connect(lambda e: print(f"Import failed: {e}"))
+        worker.finished.connect(lambda: reset_button(import_imzml_widget, "Import MSI Data"))
+        worker.start()
+        
+    import_imzml_widget.import_path.tooltip = "Path to MSI data"   
+        
+    return import_imzml_widget   
+                         
 # --- Superpixel Generator --- #
 @thread_worker(start_thread=False)
 def run_superpixel(cube, n_segs, comp, sig, iters, algorithm, scale, min_size):
