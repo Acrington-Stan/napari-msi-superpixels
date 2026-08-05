@@ -1,6 +1,6 @@
 [build-system]
-requires = ["setuptools>=61.0"]
-build-backend = "setuptools.build_meta"
+requires = ["maturin>=1.14.1"]
+build-backend = "maturin"
 
 [project]
 name = "napari-msi-superpixels"
@@ -13,7 +13,7 @@ dependencies = [
     "h5py>=3.16.0",
     "magicgui>=0.10.2",
     "qtpy>=2.4.3",
-    "scikit-image>=0.26.0"
+    "scikit-image>=0.26.0",
     "pyimzML>=1.5.5"
 ]
 classifiers = [
@@ -23,8 +23,6 @@ classifiers = [
 [project.entry-points."napari.manifest"]
 napari-msi-superpixels = "napari_msi_superpixels:napari.yaml"
 
-[tool.setuptools.packages.find]
-where = ["src"]
-
-[tool.setuptools.package-data]
-napari_msi_superpixels = ["napari.yaml"]
+[tool.maturin]
+python-packages = ["napari_msi_superpixels"]
+include = ["napari_msi_superpixels/napari.yaml"]

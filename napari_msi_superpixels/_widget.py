@@ -1,5 +1,8 @@
 # --- Package Import --- #
 import h5py
+import uuid
+import time
+import superpixel_flight_recorder
 import numpy as np
 from ._hypercube import construct_hypercube, construct_imzml_cube
 from magicgui import magicgui
@@ -10,6 +13,7 @@ from napari.qt.threading import thread_worker
 from qtpy.QtWidgets import QApplication
 from napari.viewer import current_viewer
 from pyimzml.ImzMLParser import ImzMLParser
+from datetime import datetime, timezone
 
 # - Reset button function - #
 def reset_button(widget, label):
@@ -88,17 +92,56 @@ def make_imzml_import_widget():
                          
 # --- Superpixel Generator --- #
 @thread_worker(start_thread=False)
-def run_superpixel(cube, n_segs, comp, sig, iters, algorithm, scale, min_size):
+def run_superpixel(cube, n_segs, comp, sig, iters, algorithm, scale, min_size, layer_name):
+
+    start_time = time.perf_counter() # Start time counter 
+
     if algorithm == 'SLIC':
         segments = slic(cube, n_segments=n_segs, compactness=comp, sigma=sig,
                          channel_axis=-1, start_label=0, max_num_iter=iters)
     elif algorithm == 'Felzenszwalb':
         segments = felzenszwalb(cube, scale=scale, sigma=sig, min_size=min_size,
                                  channel_axis=-1)
+        
+    # Calculate execution time 
+    elapsed_ms = int((time.perf_counter() - start_time) * 1000)
+    num_sp = int(len(np.unique(segments)))
+
+    # Metadata generation
+    run_id = str(uuid.uuid4())
+    timestamp = datetime.now(timezone.utc).isoformat()
+    image_shape = list(cube.shape)
+
+    # Call Rust function
+    if algorithm == 'SLIC':
+        log_json = superpixel_flight_recorder.create_slic_record(
+            run_id=run_id,
+            timestamp_utc=timestamp,
+            layer_name=layer_name,
+            image_shape=image_shape,
+            execution_time_ms=elapsed_ms,
+            num_superpixels=num_sp,
+            n_segments=n_segs,
+            compactness=float(comp),
+            sigma=float(sig),
+            enforce_connectivity=True,
+        )
+    else:
+        log_json = superpixel_flight_recorder.create_felzenszwalb_record(
+            run_id=run_id,
+            timestamp_utc=timestamp,
+            layer_name=layer_name,
+            image_shape=image_shape,
+            execution_time_ms=elapsed_ms,
+            num_superpixels=num_sp,
+            scale=float(scale),
+            sigma=float(sig),
+            min_size=int(min_size),
+        )
 
     bounds = find_boundaries(segments, mode='inner')
     bounds_labels = segments * bounds
-    return segments, bounds_labels, algorithm
+    return segments, bounds_labels, algorithm, log_json
 
 def make_superpixel_widget():
     @magicgui(
@@ -135,7 +178,9 @@ def make_superpixel_widget():
         superpixel_widget.call_button.text = "Running..."
         QApplication.processEvents()
 
-        worker = run_superpixel(cube, n_segs, comp, sig, iters, algorithm, scale, min_size)
+        layer_name = layer.name
+        
+        worker = run_superpixel(cube, n_segs, comp, sig, iters, algorithm, scale, min_size, layer_name)
         worker.returned.connect(lambda result: on_gen_done(viewer, result))
         worker.errored.connect(lambda e: print(f"Segmentation failed: {e}"))
         worker.finished.connect(lambda: reset_button(superpixel_widget, "Generate SPs"))
@@ -165,8 +210,12 @@ def make_superpixel_widget():
     return superpixel_widget
 
 def on_gen_done(viewer, result):
-    segments, bounds_label, algorithm = result
-    print(f"Number of segments found: {len(np.unique(segments))}")
+    segments, bounds_label, algorithm, log_json = result
+
+    print("# --- Flight Recorder Log --- #")
+    print(log_json)
+    
+    #print(f"Number of segments found: {len(np.unique(segments))}")
     label_name = (f"SLIC ({len(np.unique(segments))} SPs)" if algorithm == 'SLIC'
                   else f"Felzenszwalb ({len(np.unique(segments))} SPs)")
     viewer.add_labels(bounds_label, name=label_name)

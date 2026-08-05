@@ -6,3 +6,5 @@ dist/
 .venv/
 venv/
 *.h5
+Cargo.lock 
+/target
