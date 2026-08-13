@@ -2,23 +2,32 @@
   <img width="350" alt="git_preview_img" src="https://github.com/user-attachments/assets/55e2978a-8bd6-4562-8a01-064e1442a817"/>
 </p>
 
-# Authors 
-Thorne, J.<sup>1,2</sup>, Basham, M.<sup>1</sup>, McDougall, D.<sup>1</sup>, French, A.<sup>1,2</sup>
+## Contributors 
+Thorne, J.<sup>1,2</sup>, Basham, M.<sup>1</sup>, Green, F.<sup>1</sup>, McDougall, D.<sup>1</sup>, French, A.<sup>1,2</sup>
 
 # napari-msi-superpixels 
 Dedicated importer for Mass Spec Imaging (MSI) data to correct order for napari viewer else data will appear as a thin line and not actual image (data by default is x,y,channel - however, napari requires channel, x,y). Alongside this, the Skimage implementations of SLIC (Simple Linear Iterative Clustering) and Felzenszwalb's graph based segmentation are included as these two allow for the full hyperspectral cube that the importer constructs to be used in superpixel (SP) formation. Currently, the importer unit bins data to the nearest Dalton (Da). This is to say decimal values are rounded to the nearest whole integer (±1Da), as raw MSI data can be 180,000+ mass-to-charge (m/z) values, creating a severe computational bottleneck. Currently supports H5 and ImzML file types.
 
 # Directory Overview 
 napari-msi-superpixels/
-├── Cargo.toml                   # Rust manifest 
+├── Cargo.toml                   # Rust manifest
+
 ├── src/                         # Rust source file
+
 │   └── lib.rs                   # PyO3 bindings & parameter structs
+
 ├── napari_msi_superpixels/      # Python plugin code 
+
 │   ├── __init__.py
+
 │   ├── _widget.py               # Napari GUI widgets (SLIC / Felz controls)
+
 │   ├── _hypercube.py            # Hyperspectral datacube building function 
+
 │   ├── _reduction.py            # Dimensionality reduction for rebuilding images from lower-dimension space 
+
 ├── pyproject.toml               # Config for Maturin build backend
+
 └── .gitignore
 
 # Future Improvements 
@@ -44,5 +53,5 @@ Check requirements (pyproject.toml), the main one is napari. To install napari p
 # Credit
 napari plugin architecture corrections made with help from Claude Sonnet 5
 
-# Affiliations 
+## Affiliations 
 <sup>1</sup> Rosalind Franklin Institute, Harwell, Oxfordshire, United Kingdom <sup>2</sup> University of Nottingham, Nottingham, Nottinghamshire, United Kingdom
