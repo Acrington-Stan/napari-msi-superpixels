@@ -1,73 +1,73 @@
-# --- Import --- #
+# --- Import --- # 
+from pydantic import BaseModel
+from typing import Optional
 from nexusformat.nexus import NXroot, NXentry, NXprocess, NXdata, NXfield 
 import numpy as np
 
-# --- Main --- # 
-def superpixel_meta_save(hsc, props, segments, file_name, working_direct): # props = Regionprops 
-    #if not file_name.endswith(".nxs"):
-    #    file_name += ".nxs"
 
-    # - Turn each region prop into array - #
-    sp_ids = np.array([p.label for p in props], dtype=np.int32)
-    areas = np.array([p.area for p in props], dtype=np.int32)
-    centroids = np.array([p.centroid for p in props], dtype=np.float32)  
-    mean_intensities = np.array([p.intensity_mean for p in props], dtype=np.float32)
-    eccentricities = np.array([p.eccentricity for p in props], dtype=np.float32)
-    perimeters = np.array([p.perimeter for p in props], dtype=np.float32)
-    std_intensities = np.array([p.intensity_std for p in props], dtype=np.float32)
-    #coords = np.array([p.coords for p in props], dytpe=np.int32)
+# --- Main --- #
+class SuperpixelSchema(BaseModel):
+    sp_id: str = 'label'
+    area: str = 'area'
+    centroid: str = 'centroid'
 
-    # Construct the NeXus hierarchical structure - allows multiple groups to be attached 
-    entry = NXentry(name="entry") 
-    # - DATA GROUP 1 - #
-    y_dim, x_dim, mz_dim = hsc.shape # Might need to check order for all data
+    hsc_axis_order: tuple[str, str, str] = ('y', 'x', 'mz')
+    avg_img_axis_order: tuple[str, str, str] = ('y', 'x', 'C')
+
+def resolve_field(obj, field_name: str):
+    if isinstance(obj, dict):
+        return obj[field_name]
+    return getattr(obj, field_name)
+
+def build_prop_arrays(props, schema: SuperpixelSchema):
+    return {
+        'sp_id': np.array([resolve_field(p, schema.sp_id) for p in props], dtype=np.int32),
+        'area': np.array([resolve_field(p, schema.area) for p in props], dtype=np.int32),
+        'centroid': np.aray([resolve_field(p, schema.centroid) for p in props], dtype=np.float32)
+    }
+
+def axes_from_order(shape, order: tuple[str, ...]):
+    return [NXfield(np.arange(shape[i], name=order[i], units='pixels') 
+                    for i in range(len(order)))]
+
+def superpixel_meta_save(hsc, props, segments, avg_spec, avg_img, 
+                         schema: SuperpixelSchema, save_path: str):
+    arrays = build_prop_arrays(props, schema)
+
+    entry = NXentry(name='entry')
+
     msi_data = NXdata(
-        signal = NXfield(hsc, name="data", units="counts", 
-                         description="Mass spectra intensity counts"),
-        axes = [
-                NXfield(np.arange(y_dim), name="y", units="pixels"),
-                NXfield(np.arange(x_dim), name="x", units="pixels"),
-                NXfield(np.arange(mz_dim), name="m_z", units="Th", description="Mass-to-charge ratio") # NOTE: Th = Thomson units 
-                ]
-            )
-
-    msi_data.title = "MSI HS Cube"
-
+        signal=NXfield(hsc, name='data', units='counts', description="Mass spec intensity counts"),
+        axes=axes_from_order(hsc.shape, schema.hsc_axis_order),
+    )
+    msi_data.title = 'MSI HS cube'
     entry.data = msi_data
 
-    # - DATA GROUP 2 - #
     superpixel_group = NXdata(
-        signal = NXfield(segments, name="Superpixels", 
-                         description="2D array of SPs"),
-        axes = [
-            NXfield(np.arange(segments.shape[0]), name="y", units="pixels,"),
-            NXfield(np.arange(segments.shape[1]), name="x", units="pixels")
-        ]
+        signal=NXfield(segments, name='superpixels', description="2D array of SPs"),
+        axes=[NXfield(np.arange(segments.shape[0]), name='y', units='pixels'),
+              NXfield(np.arange(segments.shape[1]), name='x', units='pixels')],
     )
-
-    superpixel_group.title = "SP Map"
-
+    superpixel_group.title = 'SP Map'
     entry.superpixels = superpixel_group
 
-    # - DATA GROUP C - #
-    # Metadata from regionprops as NXprocess
-    process = NXprocess(name="superpixel_analysis")
-    process.program = "scikit-image"
-    process.version = "slic/regionprops"
+    process = NXprocess(name='superpixel_analysis')
+    process.program = 'Scikit-image'
+    process.version = 'slic/regionprops' #Need to add FH
 
-    # Store tabular region properties as NXfields inside process group
-    process.sp_id = NXfield(sp_ids, units="1", description="Superpixel label index")
-    process.area = NXfield(areas, units="pixels", description="Number of pixels in SP")
-    process.centroid = NXfield(centroids, units="pixels", description="Y, X coordinates of centroid")
-    process.mean_intensity = NXfield(mean_intensities, units="AU", description="Average pixel intensity") # NOTE: AU = Arbitrary Units
-    process.eccentricity = NXfield(eccentricities, units="1", description="Eccentricty of each SP")
-    process.perimeter = NXfield(perimeters, units="pixels", description="Perimeter of each SP")
-    process.std_intensity = NXfield(std_intensities, units="AU", description="Average STD of each pixels intensity")
-
+    for name, arr in arrays.items():
+        setattr(process, name, NXfield(arr, description=name))
+    process.avg_spectra = NXfield(np.array(avg_spec, dtype=np.float32), units='AU')
     entry.process = process
 
-    # - Wrap root and save - #
-    root = NXroot(entry)
-    root.save(file_name, mode = "w")
+    averged_img = NXdata(
+        signal=NXfield(avg_img, name='Averaged_image', units='AU'),
+        axes=axes_from_order(avg_img.shape, schema.avg_img_axis_order),
+    )
+    averged_img.title = 'Signal Averaged Image'
+    entry.image = averged_img
 
-    print(f"Saved MSI, superpixel and metadata as: {file_name} to {working_direct}")
+    root = NXroot(entry)
+    root.save(save_path, mode='w')
+
+    print(f"Saved MSI, superpixels and metadata to {save_path}")   

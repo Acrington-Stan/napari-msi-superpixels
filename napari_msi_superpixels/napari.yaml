@@ -11,6 +11,15 @@ contributions:
     - id: napari-msi-superpixels.make_imzml_import_widget
       python_name: napari_msi_superpixels:make_imzml_import_widget
       title: Create ImzML import widget
+    - id: napari-msi-superpixels.make_saving_widget
+      python_name: napari_msi_superpixels:make_saving_widget
+      title: Create saving widget
+    - id: napari-msi-superpixels.make_attributes_widget
+      python_name: napari_msi_superpixels:make_attributes_widget
+      title: Create attributes widget
+    - id: napari-msi-superpixels.make_plotting_widget
+      python_name: napari_msi_superpixels:make_plotting_widget
+      title: Create plotting widget
   widgets:
     - command: napari-msi-superpixels.make_import_widget
       display_name: Import MSI Data
@@ -18,3 +27,9 @@ contributions:
       display_name: Superpixel Generator
     - command: napari-msi-superpixels.make_imzml_import_widget
       display_name: Import ImzML Data
+    - command: napari-msi-superpixels.make_saving_widget
+      display_name: Save data
+    - command: napari-msi-superpixels.make_attributes_widget
+      display_name: Get Attributes
+    - command: napari-msi-superpixels.make_plotting_widget
+      display_name: Get Spectrum
